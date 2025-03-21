@@ -4,7 +4,10 @@ const Payment = require("../models/paymentModel");
 // const Order = require("../models/orderModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const sendEmail = require("../utils/email");
 const {createOrderFromCart} = require("./orderController");
+const templates = require("../utils/emailTemplates");
+
 
 exports.initializeTransaction = catchAsync(async (req, res, next) => {
     // Expecting: email, amount (in lowest currency denomination), and method (1 for Paystack, 2 for Korapay)
@@ -80,6 +83,7 @@ exports.initializeTransaction = catchAsync(async (req, res, next) => {
 exports.verifyTransaction = catchAsync(async (req, res, next) => {
     // Expecting query parameters: reference and method (as "1" or "2")
     const {reference, method} = req.query;
+    const { email, firstName, orderNumber, items, totalAmount } = req.body;
 
     if (!reference || !method) {
         return next(
@@ -130,6 +134,11 @@ exports.verifyTransaction = catchAsync(async (req, res, next) => {
 
         // Create order from cart and clear the cart
         const order = await createOrderFromCart(req, payment);
+        await sendEmail({
+            email,
+            subject: 'Order Confirmation',
+            html: templates.orderConfirmationTemplate(orderNumber, firstName, items, totalAmount),
+          });
 
         return res.status(200).json({
             status: "success",

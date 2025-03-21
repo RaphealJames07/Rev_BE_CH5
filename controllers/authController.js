@@ -5,6 +5,8 @@ const User = require("../models/userModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const sendEmail = require("../utils/email");
+// const sendEmail = require('../utils');
+const templates = require("../utils/emailTemplates");
 
 const signToken = (id) =>
     jwt.sign({id}, process.env.JWT_SECRET, {
@@ -36,6 +38,15 @@ const createSendToken = (user, statusCode, res) => {
 
 exports.signup = catchAsync(async (req, res, next) => {
     const newUser = await User.create(req.body);
+    const verificationLink = `https://yourapp.com/verify/${newUser._id}`;
+    await sendEmail({
+        email: newUser.email,
+        subject: "Verify Your Account",
+        html: templates.verifyEmailTemplate(
+            verificationLink,
+            newUser.firstName
+        ),
+    });
 
     createSendToken(newUser, 201, res);
 });
@@ -128,16 +139,16 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
     // 3) sent it to the user's email
     const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/users/resetPassword/${resetToken}`;
 
-    const message = `Forgot your password? Submit a PATCH request with your new password and confirmPassword to: ${resetUrl}. \nIf you didn't forget your password, please ignore this email`;
+    // const message = `Forgot your password? Submit a PATCH request with your new password and confirmPassword to: ${resetUrl}. \nIf you didn't forget your password, please ignore this email`;
     try {
         await sendEmail({
             email: user.email,
-            subject: "Your password reset token is valid for 10 minutes",
-            message,
+            subject: "Reset Your Password",
+            html: templates.resetPasswordTemplate(resetUrl, user.firstName),
         });
         res.status(200).json({
             status: "success",
-            message: "Token sent to email",
+            message: "Password reset link sent to your email.",
         });
     } catch (err) {
         user.passwordResetToken = undefined;
