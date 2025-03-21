@@ -1,4 +1,5 @@
 const {promisify} = require("util");
+const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/userModel");
@@ -7,6 +8,8 @@ const AppError = require("../utils/appError");
 const sendEmail = require("../utils/email");
 // const sendEmail = require('../utils');
 const templates = require("../utils/emailTemplates");
+
+dotenv.config({path: "./config.env"});
 
 const signToken = (id) =>
     jwt.sign({id}, process.env.JWT_SECRET, {
@@ -38,7 +41,7 @@ const createSendToken = (user, statusCode, res) => {
 
 exports.signup = catchAsync(async (req, res, next) => {
     const newUser = await User.create(req.body);
-    const verificationLink = `https://yourapp.com/verify/${newUser._id}`;
+    const verificationLink = `${process.env.FRONTEND_URL}/${newUser._id}`;
     await sendEmail({
         email: newUser.email,
         subject: "Verify Your Account",
