@@ -22,7 +22,7 @@ router.post("/signup", signup);
 router.post("/login", login);
 router.post("/forgetPassword", forgetPassword);
 router.patch("/resetPassword/:token", resetPassword);
-router.patch("/verify/:token", verifyUser);
+router.get("/verify/:token", verifyUser);
 router.patch("/updatePassword", protect, updatePassword);
 
 router.patch("/updateMe", protect, updateMe);

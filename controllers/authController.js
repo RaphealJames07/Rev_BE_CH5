@@ -68,7 +68,7 @@ exports.signup = catchAsync(async (req, res, next) => {
     res.status(201).json({
         status: "success",
         message: `Sign up successful Please check ${newUser.email}`,
-        token,
+        // token,
         data: {
             newUser,
         },
