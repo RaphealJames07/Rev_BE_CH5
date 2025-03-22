@@ -39,24 +39,55 @@ const createSendToken = (user, statusCode, res) => {
     });
 };
 
+const genToken = async (id, time) => {
+    const token = await jwt.sign(
+        {
+            userID: id,
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: time,
+        }
+    );
+    return token;
+};
+
+const decodeToken = async (token) => {
+    try {
+        const data = jwt.verify(token, process.env.JWT_SECRET); // No await needed
+        const user = await User.findById(data.userID);
+        return user;
+    } catch (error) {
+        console.error("JWT Verification Error:", error.message);
+        return null;
+    }
+};
+
 exports.signup = catchAsync(async (req, res, next) => {
-    const newUser = await User.create(req.body);
+    // Create a new user without saving immediately
+    // const {email,password,confirmPassword} = req.body;
+    const {email, password, confirmPassword, ...otherFields} = req.body;
+    const isEmail = await User.findOne({email});
+    if (isEmail) {
+        return next(new AppError("email already exists", 409));
+    }
+    if (!confirmPassword) {
+        return next(new AppError("Please confirm your password", 400));
+    }
+    if (password !== confirmPassword) {
+        return next(new AppError("Passwords do not match", 400));
+    }
 
-    const token = signToken(newUser._id);
-    const cookieOptions = {
-        expires: new Date(
-            Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
-        ),
-        httpOnly: true,
-    };
-    if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
+    const newUser = await User.create({email, password, ...otherFields});
 
-    res.cookie("jwt", token, cookieOptions);
+    // const newUser = await User.create(req.body);
+    const token = await genToken(newUser._id, "1d");
+    // console.log(token);
 
-    newUser.password = undefined;
+    // Create the verification link
+    const verificationLink = `${process.env.FRONTEND_URL}/verify/${token}`;
 
-    const verificationLink = `${process.env.FRONTEND_URL}/${token}`;
-
+    // Send the verification email
     await sendEmail({
         email: newUser.email,
         subject: "Verify Your Account",
@@ -65,40 +96,72 @@ exports.signup = catchAsync(async (req, res, next) => {
             newUser.firstName
         ),
     });
+
     res.status(201).json({
         status: "success",
-        message: `Sign up successful Please check ${newUser.email}`,
-        // token,
+        message: `Sign up successful! Please check ${newUser.email} to verify your account.`,
+        token,
         data: {
-            newUser,
+            user: newUser,
         },
     });
-    // createSendToken(newUser, 201, res);
 });
 
 exports.verifyUser = catchAsync(async (req, res, next) => {
     const {token} = req.params;
 
-    // Hash the token to match the stored one
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-    // Find the user with the matching token
-    const user = await User.findOne({verificationToken: hashedToken});
-
-    if (!user) {
+    const userInfo = await decodeToken(token);
+    if (!userInfo) {
         return next(
             new AppError("Invalid or expired verification token.", 400)
         );
     }
 
-    user.active = true;
-    user.verificationToken = undefined;
-    await user.save({validateBeforeSave: false});
+    console.log(userInfo);
+
+    userInfo.isVerified = true;
+    await userInfo.save(); // Save the updated user
 
     res.status(200).json({
         status: "success",
         message: "Account verified successfully! You can now log in.",
     });
+});
+
+exports.resendVerificationMail = catchAsync(async (req, res, next) => {
+    const {email} = req.body;
+    const user = await User.findOne({email});
+    if (user && !user.isVerified) {
+        const token = await genToken(user._id, "1d");
+
+        const verificationLink = `${process.env.FRONTEND_URL}/verify/${token}`;
+
+        // Send the verification email
+        await sendEmail({
+            email: user.email,
+            subject: "Verify Your Account",
+            html: templates.verifyEmailTemplate(
+                verificationLink,
+                user.firstName
+            ),
+        });
+
+        res.status(200).json({
+            status: "success",
+            message: `Verify link sent successful, Please check ${user.email} to verify your account.`,
+        });
+    } else if (user.isVerified) {
+        return next(
+            new AppError(
+                `User with email "${user.email}" already verified`,
+                400
+            )
+        );
+    } else {
+        res.status(404).json({
+            message: "user with email not found",
+        });
+    }
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -110,11 +173,12 @@ exports.login = catchAsync(async (req, res, next) => {
     }
     // 2) Check if user exists && password is correct
     const user = await User.findOne({email}).select("+password");
+    console.log(user);
 
     if (!user || !(await user.correctPassword(password, user.password))) {
         return next(new AppError("Incorrect email or password", 401));
     }
-    if (!user.active) {
+    if (!user.isVerified) {
         return next(
             new AppError(
                 "User not verified, Check for token or use the resend verification",
@@ -187,9 +251,10 @@ exports.protect = catchAsync(async (req, res, next) => {
     next();
 });
 
-exports.restrictTo =
-    (...roles) =>
-    (req, res, next) => {
+exports.restrictTo = (...roles) =>
+    catchAsync(async (req, res, next) => {
+        if (!roles) return next(new AppError("Roles not found", 404));
+        // console.log(req.user.role);
         if (!roles.includes(req.user.role)) {
             return next(
                 new AppError(
@@ -199,7 +264,7 @@ exports.restrictTo =
             );
         }
         next();
-    };
+    });
 
 exports.forgetPassword = catchAsync(async (req, res, next) => {
     // 1) Get user based on POSTed email
@@ -214,7 +279,7 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
     await user.save({validateBeforeSave: false});
 
     // 3) sent it to the user's email
-    const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/users/resetPassword/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     // const message = `Forgot your password? Submit a PATCH request with your new password and confirmPassword to: ${resetUrl}. \nIf you didn't forget your password, please ignore this email`;
     try {
@@ -252,7 +317,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
         return next(new AppError("Token is invalid or has expired", 400));
     }
     user.password = req.body.password;
-    user.confirmPassword = req.body.confirmPassword;
+    // user.confirmPassword = req.body.confirmPassword;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
@@ -276,9 +341,13 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     }
     // 3) If so, update password
     user.password = req.body.password;
-    user.confirmPassword = req.body.confirmPassword;
+    // user.confirmPassword = req.body.confirmPassword;
     await user.save();
 
     //4) Log user in, send JWT
     createSendToken(user, 200, res);
+});
+exports.deteleAllUser = catchAsync(async (req, res, next) => {
+    await User.deleteMany();
+    res.status(200).json({status: "success", message: "User deleted"});
 });

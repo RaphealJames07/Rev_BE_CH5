@@ -33,7 +33,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
         );
     }
     // 2) Filtered out unwanted fields names not allowed to be updated
-    const filteredBody = filterObj(req.body, "email");
+    const filteredBody = filterObj(req.body, "firstName", "lastName");
 
     // 3) Update user document
     const updatedUser = await User.findByIdAndUpdate(
@@ -49,12 +49,30 @@ exports.updateMe = catchAsync(async (req, res, next) => {
         status: "success",
         data: {
             user: updatedUser,
+            updatedBy: req.user.email,
         },
     });
 });
 
 exports.deleteMe = catchAsync(async (req, res, next) => {
-    await User.findByIdAndUpdate(req.user.id, {active: false});
+    const {password} = req.body;
+    const {email} = req.user;
+    if (!password) {
+        return next(
+            new AppError(
+                `To delete account, enter your correct user password`,
+                400
+            )
+        );
+    }
+    const user = await User.findOne({email}).select("+password");
+    // console.log(user);
+    if (!user) {
+        return next(new AppError(`User not found`, 404));
+    }
+    if (!(await user.correctPassword(password, user.password))) {
+        return next(new AppError("Incorrect password", 401));
+    }
 
     res.status(204).json({
         status: "success",
@@ -62,19 +80,27 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
     });
 });
 
-exports.getUser = catchAsync(async(req, res,next) => {
-  const user = await User.findById(req.params.id);
+exports.getUser = catchAsync(async (req, res, next) => {
+    const user = await User.findById(req.params.id);
 
-  if (!user) {
-    return next(new AppError(`User with ID: ${req.params.id} not found`, 404));
-  }
+    if (!user) {
+        return next(
+            new AppError(`User with ID: ${req.params.id} not found`, 404)
+        );
+    }
 
-  res.status(200).json({
-    status: 'success',
-    result: user.length,
-    data: {
-      user,
-    },
-  });
+    res.status(200).json({
+        status: "success",
+        result: user.length,
+        data: {
+            user,
+        },
+    });
 });
 
+exports.getUserCart = catchAsync(async (req, res, next) =>
+    res.status(200).json({
+        status: "success",
+        message: "This endpoint is working!",
+    })
+);

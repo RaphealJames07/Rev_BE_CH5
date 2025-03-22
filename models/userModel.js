@@ -15,6 +15,11 @@ const userSchema = new mongoose.Schema(
             required: [true, "Please enter your last name"],
             // trim: true,
         },
+        role: {
+            type: String,
+            enum: ['user', 'admin','driver'],
+            default: 'user',
+          },
         email: {
             type: String,
             required: [true, "Please enter your email"],
@@ -37,18 +42,7 @@ const userSchema = new mongoose.Schema(
             // trim: true,
             select: false,
         },
-        confirmPassword: {
-            type: String,
-            required: [true, "Please confirm your password"],
-            // trim: true,
-            validate: {
-                // This only works on CREATE and SAVE
-                validator: function (el) {
-                    return el === this.password;
-                },
-                message: "Passwords are not the same",
-            },
-        },
+        
         passwordChangedAt: {
             type: Date,
         },
@@ -58,6 +52,11 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
             select: false,
+        },
+        isVerified: {
+            type: Boolean,
+            default: false,
+            // select: false,
         },
     },
     {timestamps: true}
@@ -105,6 +104,17 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
     return false;
 };
 
+// userSchema.methods.createSignUpToken = function () {
+//     const token = crypto.randomBytes(32).toString("hex");
+
+//     this.verifyToken = crypto.createHash("sha256").update(token).digest("hex");
+
+//     console.log({token}, this.verifyToken);
+
+//     this.verifyTokenExpires = Date.now() + 10 * 60 * 1000;
+
+//     return token;
+// };
 userSchema.methods.createPasswordResetToken = function () {
     const resetToken = crypto.randomBytes(32).toString("hex");
 

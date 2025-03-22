@@ -93,6 +93,17 @@ const productSchema = new mongoose.Schema({
         default: Date.now,
         
     },
+    lastUpdated: {
+        type: String,
+        default: null,
+    },
+    updateHistory: [
+        {
+            updatedBy: { type: String, required: true },
+            updatedAt: { type: String, required: true },
+            changes: { type: Object, required: true }, // Stores the updated fields
+        },
+    ],
 });
 
 const Product = mongoose.model("Product", productSchema);

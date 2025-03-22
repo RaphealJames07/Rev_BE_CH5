@@ -6,8 +6,9 @@ const dotenv = require("dotenv");
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 const userRouter = require("./routes/userRoutes");
+const cartsRouter = require('./routes/cartsRoutes')
 const productRouter = require("./routes/productRoutes");
-const cartRouter = require("./routes/cartRoutes");
+// const cartRouter = require("./routes/cartRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
@@ -44,9 +45,10 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/carts", cartsRouter);
 app.use("/api/v1/product", productRouter);
-app.use("/api/v1/cart", cartRouter);
-app.use("/api/v1/payment", paymentRoutes);
+// app.use("/api/v1/cart", cartRouter);
+app.use("/api/v1/payments", paymentRoutes);
 
 // Handle Unhandled ROutes
 app.all("*", (req, res, next) => {

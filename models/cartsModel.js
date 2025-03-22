@@ -20,15 +20,29 @@ const cartSchema = new mongoose.Schema({
                 min: 1,
                 default: 1,
             },
-            price: {
+            unitPrice: {
                 type: Number,
                 required: true,
+            },
+            totalPrice: {
+                type: Number,
+            },
+            sizeInfo: {
+                size: {
+                    us: {type: Number},
+                    uk: {type: Number},
+                },
+                price: Number,
+                sizeId: String,
             },
         },
     ],
     total: {
         type: Number,
         default: 0,
+    },
+    length: {
+        type: Number,
     },
 });
 
