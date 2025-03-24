@@ -50,7 +50,7 @@ const transporter = nodemailer.createTransport({
  * @param {string} options.html - Email body (HTML)
  */
 const sendEmail = async (options) => {
-    console.log(transporter);
+    // console.log(transporter);
     const mailOptions = {
         from: `"Rapheal Ukachukwu" <${process.env.EMAIL_USERNAME}>`,
         to: options.email,

@@ -1,3 +1,4 @@
+// const {default: mongoose} = require("mongoose");
 const Cart = require("../models/cartsModel");
 const Product = require("../models/productModel");
 const catchAsync = require("../utils/catchAsync");
@@ -16,9 +17,9 @@ exports.addToCart = catchAsync(async (req, res, next) => {
 
     // Find the selected size
     const selectedSize = product.sizes.find(
-        (size) => size._id.toString() === sizeId
+        (size) => size._id.toString() === sizeId.toString()
     );
-    console.log(req.body);
+    // console.log(req.body);
     if (!selectedSize) {
         return next(new AppError("Invalid size selection", 400));
     }
@@ -45,7 +46,7 @@ exports.addToCart = catchAsync(async (req, res, next) => {
             item.product.toString() === productId &&
             item.sizeInfo.sizeId.toString() === sizeId
     );
-
+    console.log(product);
     if (existingItem) {
         existingItem.quantity += quantity;
         existingItem.totalPrice =
@@ -59,6 +60,10 @@ exports.addToCart = catchAsync(async (req, res, next) => {
                 sizeId: selectedSize._id,
             },
             quantity,
+            image: product.images,
+            category: product.category,
+            brand: product.brand,
+            productType: product.type,
             unitPrice: selectedSize.price,
             totalPrice: selectedSize.price * quantity,
         });
@@ -83,10 +88,11 @@ exports.addToCart = catchAsync(async (req, res, next) => {
 // Get user's cart
 exports.getUserCart = catchAsync(async (req, res, next) => {
     const cart = await Cart.findOne({user: req.user.id});
+    // console.log(cart);
     if (!cart) {
         return res.status(200).json({
             status: "success",
-            data: {cart: [], total: 0, length: cart.items.length},
+            data: {cart: [], total: 0, length: 0},
             message: "Cart is empty",
         });
     }

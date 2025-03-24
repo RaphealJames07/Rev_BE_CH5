@@ -53,7 +53,8 @@ exports.resetPasswordTemplate = (link, firstName) => `
   `;
 
 exports.orderConfirmationTemplate = (orderNumber, firstName, items, totalAmount) => {
-  const itemsHtml = items.map(item => `<li>${item.name} - $${item.price} (Qty: ${item.quantity})</li>`).join('');
+  // console.log("Email Shii", items)
+  const itemsHtml = items.map(item => `<li>${item.productType} - $${item.totalPrice} (Qty: ${item.quantity})</li>`).join('');
 
   return `
     <!DOCTYPE html>

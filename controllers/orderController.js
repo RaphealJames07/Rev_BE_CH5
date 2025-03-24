@@ -1,5 +1,7 @@
 const Order = require("../models/orderModel");
+const DeliveryAddress = require("../models/deliveryAddressModel");
 const Cart = require("../models/cartsModel");
+const Payment = require("./paymentsController");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 
@@ -7,27 +9,85 @@ const AppError = require("../utils/appError");
 const generateOrderNumber = () =>
     `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-// Create an order from the current cart after a successful payment
-exports.createOrderFromCart = catchAsync(async (req, payment) => {
-    // Get the user's cart
-    const userCart = await Cart.findOne({user: req.user.id});
-    if (!userCart || userCart.items.length === 0) {
-        throw new AppError("Cart is empty", 400);
+exports.initializeOrder = catchAsync(async (req, res, next) => {
+    const { addressId, deliveryMode} = req.body;
+    const userId = req.user.id;
+
+    // Fetch address details
+    const address = await DeliveryAddress.findOne({
+        _id: addressId,
+        user: userId,
+    });
+    if (!address) {
+        return next(new AppError("Delivery address not found", 404));
     }
 
+    const cartData = await Cart.findOne({user: req.user.id});
+
+    // Create order with status "initialized" and empty paymentData
     const order = await Order.create({
-        orderNumber: generateOrderNumber(),
-        user: req.user.id,
-        payment: payment._id,
-        items: userCart.items,
-        totalAmount: userCart.total,
-        status: "completed",
+        orderNumber: generateOrderNumber(), // Unique order number
+        userId,
+        userData: {
+            firstName: req.user.firstName,
+            lastName: req.user.lastName,
+            email: req.user.email,
+        },
+        paymentData: {}, // Empty at this stage
+        shippingData: {
+            address: address.address,
+            city: address.city,
+            state: address.state,
+            country: address.country,
+            postalCode: address.postalCode,
+        },
+        cartData: {
+            items: cartData.items,
+            totalAmount: cartData.total,
+        },
+        deliveryMode,
+        status: "initialized",
     });
 
-    // Clear the user's cart
-    await Cart.findOneAndDelete({user: req.user.id});
+    res.status(201).json({
+        status: "success",
+        data: order,
+    });
+});
 
-    return order;
+exports.updateOrderPayment = catchAsync(async (req, res, next) => {
+    const {orderId, reference, provider} = req.body;
+
+    // Fetch payment details
+    const payment = await Payment.findOne({reference, provider});
+    if (!payment) {
+        return next(new AppError("Payment record not found", 404));
+    }
+
+    // Update order with paymentData and status
+    const updatedOrder = await Order.findByIdAndUpdate(
+        orderId,
+        {
+            paymentData: {
+                reference: payment.reference,
+                provider: payment.provider,
+                status: payment.status,
+                amountPaid: payment.amount,
+                currency: payment.currency,
+                paymentDate: payment.createdAt,
+            },
+            status:
+                payment.status === "successful"
+                    ? "payment-confirmed"
+                    : "payment-failed",
+        },
+        {new: true}
+    );
+
+    res.status(200).json({
+        status: "success",
+        data: updatedOrder,
+    });
 });
 
 // Admin: Get all orders
