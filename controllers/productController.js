@@ -130,6 +130,119 @@ exports.createProduct = catchAsync(async (req, res, next) => {
     });
 });
 
+exports.batchProductUpload = catchAsync(async (req, res, next) => {
+    if (!req.parsedData || req.parsedData.length === 0) {
+        return next(
+            new AppError("No products found in the uploaded file", 400)
+        );
+    }
+    // console.log(req.files)
+
+    // Validate and process each product using map
+    const productPromises = req.parsedData.map(async (productData) => {
+        const {
+            productName,
+            stockQuantity,
+            basePrice,
+            category,
+            brand,
+            type,
+            sizes,
+            variants,
+            shortDescription,
+            fullDescription,
+            weight,
+            sku,
+            imagePaths,
+        } = productData;
+
+        if (
+            !productName ||
+            !category ||
+            !brand ||
+            !shortDescription ||
+            !fullDescription ||
+            !weight ||
+            !sku
+        ) {
+            throw new AppError(
+                `Missing required fields for product: ${productName}`,
+                400
+            );
+        }
+
+        let parsedSizes;
+        try {
+            parsedSizes = JSON.parse(sizes);
+        } catch {
+            throw new AppError(
+                `Invalid sizes format for product: ${productName}`,
+                400
+            );
+        }
+
+        let parsedVariants = [];
+        if (variants) {
+            try {
+                parsedVariants = JSON.parse(variants);
+            } catch {
+                throw new AppError(
+                    `Invalid variants format for product: ${productName}`,
+                    400
+                );
+            }
+        }
+
+        let imageUrls = [];
+        if (imagePaths) {
+            const filePaths = imagePaths.split(",").map((path) => path.trim());
+            try {
+                const uploadResults = await Promise.all(
+                    filePaths.map(
+                        async (filePath) =>
+                            await cloudinary.uploader.upload(filePath, {
+                                folder: "cohort_5_images_revision",
+                                use_filename: true,
+                            })
+                    )
+                );
+                imageUrls = uploadResults.map((result) => result.secure_url);
+            } catch (err) {
+                console.error("Error uploading images:", err);
+                throw new AppError(
+                    `Image upload failed for product: ${productName}`,
+                    500
+                );
+            }
+        }
+
+        return Product.create({
+            productName,
+            stockQuantity,
+            basePrice,
+            images: imageUrls,
+            sizes: parsedSizes,
+            category,
+            brand,
+            type,
+            variants: parsedVariants,
+            shortDescription,
+            fullDescription,
+            weight,
+            sku,
+        });
+    });
+
+    // Execute all product creations concurrently
+    const createdProducts = await Promise.all(productPromises);
+
+    res.status(201).json({
+        status: "success",
+        message: `${createdProducts.length} products uploaded successfully`,
+        data: createdProducts,
+    });
+});
+
 exports.getProduct = catchAsync(async (req, res, next) => {
     const product = await Product.findById(req.params.id);
     if (!product) {
@@ -228,7 +341,7 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
         return next(new AppError("Incorrect password", 401));
     }
     const product = await Product.findByIdAndDelete(req.params.id);
-  
+
     if (!product) {
         return next(new AppError(`product not found`, 404));
     }

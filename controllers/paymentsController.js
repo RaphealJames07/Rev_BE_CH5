@@ -57,21 +57,21 @@ exports.initializeTransaction = catchAsync(async (req, res, next) => {
     };
 
     const koraData = {
-      amount,
+        amount,
         reference: (reference = generateOrderNumber()),
         customer: customerInfo,
         currency: "NGN",
-        channels: ["card","bank_transfer","pay_with_bank","mobile_money"],
+        channels: ["card", "bank_transfer", "pay_with_bank", "mobile_money"],
         default_channel: "card",
-        narration: `Payment for order #${  orderId}`,
+        narration: `Payment for order #${orderId}`,
         redirect_url: "http://localhost:5173/",
-      };
-      // notification_url: _webHookUrl,
-      // console.log(koraData)
+    };
+    // notification_url: _webHookUrl,
+    // console.log(koraData)
 
     if (method === 1) {
-      // Paystack
-      amount *= 100;
+        // Paystack
+        amount *= 100;
         provider = "paystack";
         const paystackResponse = await axios.post(
             "https://api.paystack.co/transaction/initialize",
@@ -100,23 +100,32 @@ exports.initializeTransaction = catchAsync(async (req, res, next) => {
         // console.log(responseData);
         // reference = responseData.reference;
         try {
-          const korapayResponse = await axios.post(
-              "https://api.korapay.com/merchant/api/v1/charges/initialize",
-              koraData,
-              {
-                  headers: {
-                      Authorization: `Bearer ${process.env.KORAPAY_SECRET_KEY}`,
-                      "Content-Type": "application/json",
-                  },
-              }
-          );
-          responseData = korapayResponse.data; // Ensure you access `.data`
-          reference = responseData.data.reference;
-          console.log(responseData)
-      } catch (error) {
-          console.error("Korapay Error:", error.response.data || error.message);
-          return next(new AppError(error.response.data.message || "Korapay initialization failed", 400));
-      }
+            const korapayResponse = await axios.post(
+                "https://api.korapay.com/merchant/api/v1/charges/initialize",
+                koraData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.KORAPAY_SECRET_KEY}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            responseData = korapayResponse.data; // Ensure you access `.data`
+            reference = responseData.data.reference;
+            console.log(responseData);
+        } catch (error) {
+            console.error(
+                "Korapay Error:",
+                error.response.data || error.message
+            );
+            return next(
+                new AppError(
+                    error.response.data.message ||
+                        "Korapay initialization failed",
+                    400
+                )
+            );
+        }
     }
 
     // Save payment record
@@ -208,6 +217,11 @@ exports.verifyTransaction = catchAsync(async (req, res, next) => {
             paymentDate: payment.date,
         };
         order.status = "payment-confirmed";
+        order.orderActivities.push({
+            status: "payment-confirmed",
+            message: "Payment has been successfully verified.",
+            timestamp: formatDate(new Date()),
+        });
         await order.save();
 
         await sendEmail({
@@ -230,6 +244,11 @@ exports.verifyTransaction = catchAsync(async (req, res, next) => {
     }
     // Payment failed
     payment.status = "failed";
+    order.orderActivities.push({
+        status: "payment-failed",
+        message: "Payment verification failed. Please retry.",
+        timestamp: formatDate(new Date()),
+    });
     await payment.save();
 
     order.status = "payment-failed";

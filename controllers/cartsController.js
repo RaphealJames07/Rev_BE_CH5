@@ -66,6 +66,7 @@ exports.addToCart = catchAsync(async (req, res, next) => {
             productType: product.type,
             unitPrice: selectedSize.price,
             totalPrice: selectedSize.price * quantity,
+            productName: product.productName
         });
     }
 

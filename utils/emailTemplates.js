@@ -11,7 +11,7 @@ exports.verifyEmailTemplate = (link, firstName) => `
         .btn { display: inline-block; padding: 15px 25px; font-size: 18px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; }
         .footer { font-size: 12px; color: #777; margin-top: 20px; }
       </style>
-    </head>
+    </head> 
     <body>
       <div class="container">
         <h1>Verify Your Account</h1>

@@ -4,13 +4,14 @@ const Cart = require("../models/cartsModel");
 const Payment = require("./paymentsController");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const {formatDate} = require("../middlewares/authMiddleware");
 
 // Utility to generate an order number (you can customize this)
 const generateOrderNumber = () =>
     `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
 exports.initializeOrder = catchAsync(async (req, res, next) => {
-    const { addressId, deliveryMode} = req.body;
+    const {addressId, deliveryMode} = req.body;
     const userId = req.user.id;
 
     // Fetch address details
@@ -45,6 +46,13 @@ exports.initializeOrder = catchAsync(async (req, res, next) => {
             items: cartData.items,
             totalAmount: cartData.total,
         },
+        orderActivities: [
+            {
+                status: "initialized",
+                timestamp: formatDate(new Date()),
+                message: `Your order has been created, awaiting payment`,
+            },
+        ],
         deliveryMode,
         status: "initialized",
     });
@@ -76,6 +84,7 @@ exports.updateOrderPayment = catchAsync(async (req, res, next) => {
                 currency: payment.currency,
                 paymentDate: payment.createdAt,
             },
+            
             status:
                 payment.status === "successful"
                     ? "payment-confirmed"

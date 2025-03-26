@@ -2,6 +2,7 @@ const xlsx = require("xlsx");
 const fs = require("fs");
 
 exports.parseExcel = (req, res, next) => {
+    console.log(req.file)
     try {
         if (!req.file) {
             return res.status(400).json({

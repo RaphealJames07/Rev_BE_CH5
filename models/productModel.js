@@ -15,6 +15,9 @@ const productSchema = new mongoose.Schema({
         type: [String],
         required: [true, "Please provide at least one image"],
     },
+    imagePaths: {
+        type: String,
+    },
     sizes: {
         type: [
             {

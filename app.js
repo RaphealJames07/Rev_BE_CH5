@@ -19,7 +19,7 @@ dotenv.config({path: "./config.env"});
 app.use(
     cors({
         origin: "*",
-        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Add the allowed methods here
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     })
 );
 

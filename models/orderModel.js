@@ -86,6 +86,7 @@ const orderSchema = new mongoose.Schema(
                 "initialized",
                 "payment-confirmed",
                 "processing-order",
+                "ready-for-pickup",
                 "on-delivery",
                 "delivered",
                 "cancelled",
@@ -94,6 +95,32 @@ const orderSchema = new mongoose.Schema(
             ],
             default: "initialized",
         },
+        orderActivities: [
+            {
+                status: {
+                    type: String,
+                    enum: [
+                        "initialized",
+                        "payment-confirmed",
+                        "processing-order",
+                        "ready-for-pickup",
+                        "on-delivery",
+                        "delivered",
+                        "cancelled",
+                        "returned",
+                        "payment-failed",
+                    ],
+                },
+                timestamp: {
+                    type: String,
+                    default: null,
+                },
+                message: {
+                    type: String,
+                    default: null,
+                },
+            },
+        ],
         isRefunded: {type: Boolean, default: false},
         isCancelled: {type: Boolean, default: false},
         cancellationReason: {type: String, default: null},
