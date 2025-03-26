@@ -162,7 +162,7 @@ exports.decreaseItemQTY = catchAsync(async (req, res, next) => {
 
 // Remove item from cart
 exports.removeItemFromCart = catchAsync(async (req, res, next) => {
-    const {productId} = req.body;
+    const {productId} = req.params;
     const product = await Product.findById(productId);
     const cart = await Cart.findOne({user: req.user.id});
     if (!cart) return next(new AppError("Cart not found", 404));
