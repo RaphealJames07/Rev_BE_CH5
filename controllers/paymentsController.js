@@ -64,7 +64,7 @@ exports.initializeTransaction = catchAsync(async (req, res, next) => {
         channels: ["card", "bank_transfer", "pay_with_bank", "mobile_money"],
         default_channel: "card",
         narration: `Payment for order #${orderId}`,
-        redirect_url: "http://localhost:5173/",
+        redirect_url: process.env.VERIFY_PAYMENT_CALLBACK_URL,
     };
     // notification_url: _webHookUrl,
     // console.log(koraData)
@@ -75,7 +75,11 @@ exports.initializeTransaction = catchAsync(async (req, res, next) => {
         provider = "paystack";
         const paystackResponse = await axios.post(
             "https://api.paystack.co/transaction/initialize",
-            {email, amount},
+            {
+                email,
+                amount,
+                callback_url: process.env.VERIFY_PAYMENT_CALLBACK_URL,
+            },
             {
                 headers: {
                     Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
